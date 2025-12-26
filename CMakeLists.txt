@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 4.2.1 FATAL_ERROR)
+project(block-blast-solver SPDX_LICENSE "MIT" DESCRIPTION "C++ solvers for mobile game Block Blast! along with its minigames/moregames" LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_executable(block_blast_solver src/block_blast_solver.cpp)
+add_executable(sudoku_solver src/sudoku_solver.cpp)
+add_executable(hamiltonian_path src/hamiltonian_path.cpp)
+target_compile_features(hamiltonian_path PRIVATE cxx_std_23)
