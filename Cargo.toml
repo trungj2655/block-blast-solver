@@ -1,0 +1,15 @@
+[package]
+name = "block-blast-solver"
+version = "1.0.0"
+edition = "2024"
+description = "Rust port of game solvers"
+readme = "README.md"
+repository = "https://github.com/trungj2655/block-blast-solver"
+license = "MIT"
+
+[dependencies]
+scan-rules = "0.2.0"
+
+[[bin]]
+name = "hamiltonian_path"
+path = "src/hamiltonian_path.rs"
