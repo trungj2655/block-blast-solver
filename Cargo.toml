@@ -2,12 +2,14 @@
 name = "block-blast-solver"
 version = "1.0.0"
 edition = "2024"
+rust-version = "1.88.0"
 description = "Rust port of game solvers"
 readme = "README.md"
 repository = "https://github.com/trungj2655/block-blast-solver"
 license = "MIT"
 
 [dependencies]
+ndarray = "0.17.1"
 scan-rules = "0.2.0"
 
 [[bin]]
