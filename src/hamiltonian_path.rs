@@ -1,7 +1,10 @@
-#[macro_use]
-extern crate scan_rules;
+use tracing::*;
+use scan_rules::*;
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::fmt::time::Uptime;
+use tracing_subscriber::fmt::format::FmtSpan;
 use ndarray::prelude::*;
-use std::io::{self, BufRead};
+use std::io::{BufRead, stdin, IsTerminal};
 // right, down, left, up
 static DR: [isize; 4] = [0, 1, 0, -1];
 static DC: [isize; 4] = [1, 0, -1, 0];
@@ -27,6 +30,7 @@ struct State {
     r: usize, c: usize,
     dir: usize, // 0: right | 1: down | 2: left | 3: up
 }
+#[instrument(skip(grid))]
 fn find_hamiltonian_path(rows: &usize, cols: &usize, grid: &mut Array2<usize>, start_r: &usize, start_c: &usize, total_vertices: &usize) -> Option<Vec<State>> {
     let mut path_length = 1_usize;
     let mut path: Vec<State> = vec![State {r: 0, c: 0, dir: 0}; *total_vertices];
@@ -61,26 +65,48 @@ fn find_hamiltonian_path(rows: &usize, cols: &usize, grid: &mut Array2<usize>, s
     }
 }
 fn main() {
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_target(false)
+        .with_file(true)
+        .with_line_number(true)
+        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+        .with_timer(Uptime::default())
+        .init();
+    let main_span = info_span!("main");
+    let _enter = main_span.enter();
+    let term = stdin().is_terminal();
     let (mut start_r, mut start_c) = (0_usize, 0_usize);
     let mut start_found: bool = false;
-    print!("Enter the grid dimensions (rows by columns): ");
     let (rows, cols) = loop {
+        if term {
+            print!("Enter the grid dimensions (rows by columns): ");
+        }
         let result = try_readln! {
             (let rows: usize, let cols: usize) => (rows, cols)
         };
         match result {
             Ok((rows, cols)) => {
                 if rows == 0 || cols == 0 {
-                    print!("Invalid input, please try again: ");
+                    error!(?rows, ?cols, "Invalid input");
+                    if !term {
+                        return;
+                    }
                 } else {
                     break (rows, cols);
                 }
             },
-            Err(_) => print!("Invalid input, please try again: "),
-        };
+            Err(e) => {
+                error!(error = %e, "Invalid input");
+                if !term {
+                    return;
+                }
+            },
+        }
     };
     let mut total_vertices = rows * cols;
-    println!("rows = {rows}, cols = {cols}");
+    trace!(?rows, ?cols, ?total_vertices);
     let mut grid: Array2<usize> = Array::zeros((rows, cols)); // 0: valid, unvisited | 1: hole | 2: visited
     println!(r###"Enter the grid layout row by row.
   - Use '#' for a hole.
@@ -89,7 +115,7 @@ Any other character will be interpreted as a valid path cell.
 Multiple starting points after the first one will also be interpreted as a valid path cell.
 Row string input with insufficient length will leave the remaining cells valid."###);
     {
-        let handle = io::stdin().lock();
+        let handle = stdin().lock();
         let mut iterator = handle.lines();
         for i in 0..rows {
             let row_str = iterator.next().unwrap().unwrap();
@@ -114,15 +140,15 @@ Row string input with insufficient length will leave the remaining cells valid."
             }
         }
     }
+    trace!(?total_vertices, %grid, ?start_found, ?start_r, ?start_c);
     if !start_found {
-        panic!("Error: Starting point 'S' not found in the grid.");
+        error!(?total_vertices, %grid, ?start_found, "Starting point 'S' not found in the grid");
+        return;
     }
-    println!("total_vertices = {total_vertices}\n{grid}");
-    println!("Finding...");
     if let Some(path) = find_hamiltonian_path(&rows, &cols, &mut grid, &start_r, &start_c, &total_vertices) {
-        println!("Hamiltonian path found:");
+        info!("Hamiltonian path found:");
         for sol in &path {
-            println!("{} {}", sol.r, sol.c);
+            println!("{} {} {}", sol.r, sol.c, sol.dir);
         }
         let dest = &path[total_vertices - 1];
         grid[[start_r, start_c]] = 0;
@@ -131,7 +157,7 @@ Row string input with insufficient length will leave the remaining cells valid."
         for i in path.iter().skip(1).take(n) {
             grid[[i.r, i.c]] = i.dir + 2;
         }
-        println!("Path directions grid:");
+        info!("Path directions grid:");
         for i in 0..rows {
             for j in 0..cols {
                 print!("{}", DIRECTIONS[grid[[i, j]]]);
@@ -145,7 +171,7 @@ Row string input with insufficient length will leave the remaining cells valid."
             grid[[cur.r, cur.c]] = LOOKUP[prev.dir][cur.dir];
             prev = cur;
         }
-        println!("Connected path grid:");
+        info!("Connected path grid:");
         for i in 0..rows {
             for j in 0..cols {
                 print!("{}", CONNECTED[grid[[i, j]]]);
@@ -153,6 +179,6 @@ Row string input with insufficient length will leave the remaining cells valid."
             println!();
         }
     } else {
-        println!("No Hamiltonian path exists from the starting vertex.");
+        info!("No Hamiltonian path exists from the starting vertex.");
     }
 }
