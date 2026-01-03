@@ -1,3 +1,6 @@
+use mimalloc::MiMalloc;
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 use tracing::*;
 use scan_rules::*;
 use tracing_subscriber::EnvFilter;
@@ -74,8 +77,7 @@ fn main() {
         .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
         .with_timer(Uptime::default())
         .init();
-    let main_span = info_span!("main");
-    let _enter = main_span.enter();
+    let _main_span = info_span!("main").entered();
     let term = stdin().is_terminal();
     let (mut start_r, mut start_c) = (0_usize, 0_usize);
     let mut start_found: bool = false;
@@ -108,15 +110,16 @@ fn main() {
     let mut total_vertices = rows * cols;
     trace!(?rows, ?cols, ?total_vertices);
     let mut grid: Array2<usize> = Array::zeros((rows, cols)); // 0: valid, unvisited | 1: hole | 2: visited
-    println!(r###"Enter the grid layout row by row.
+    if term {
+        println!(r###"Enter the grid layout row by row.
   - Use '#' for a hole.
   - Use 'S' for the starting point.
 Any other character will be interpreted as a valid path cell.
 Multiple starting points after the first one will also be interpreted as a valid path cell.
 Row string input with insufficient length will leave the remaining cells valid."###);
+    }
     {
-        let handle = stdin().lock();
-        let mut iterator = handle.lines();
+        let mut iterator = stdin().lock().lines();
         for i in 0..rows {
             let row_str = iterator.next().unwrap().unwrap();
             for (j, c) in row_str.chars().enumerate() {

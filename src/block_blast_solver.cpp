@@ -144,6 +144,7 @@ int main() {
     vector<size_t> pieces_dims(2 * n_pieces);
     vector<size_t> lines_cleared(n_pieces, 0);
     vector<vector<bool>> pieces;
+    pieces.reserve(n_pieces);
     vector<vector<bool>> state(n_pieces + 1, vector<bool>(grid_size, false));
     auto initial_state = state.begin();
     cout << "Enter the grid layout row by row.\n"
