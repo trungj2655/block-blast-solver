@@ -1,6 +1,7 @@
 use mimalloc::MiMalloc;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
+use clap::Parser;
 use tracing::*;
 use scan_rules::*;
 use tracing_subscriber::EnvFilter;
@@ -8,6 +9,13 @@ use tracing_subscriber::fmt::time::Uptime;
 use tracing_subscriber::fmt::format::FmtSpan;
 use ndarray::prelude::*;
 use std::io::{BufRead, stdin, IsTerminal};
+struct Chunk(usize, usize);
+#[derive(Parser, Debug, Clone)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg(short, long, default_value_t = false, help = r#"Also clears subgrids/"chunks" with sizes specified in the program"#)]
+    wooden: bool,
+}
 fn print_grid(grid: ArrayView2<bool>) {
     let [r, c] = grid.shape() else {panic!("Invalid dimensions")};
     for i in 0..*r {
@@ -18,7 +26,7 @@ fn print_grid(grid: ArrayView2<bool>) {
     }
 }
 #[instrument(skip_all)]
-fn solve(place_order: &mut Vec<usize>, lines_cleared: &mut Vec<usize>, pieces: &[Array2<bool>], state: &mut Array3<bool>) -> Option<usize> {
+fn solve(place_order: &mut Vec<usize>, lines_cleared: &mut Vec<usize>, pieces: &[Array2<bool>], state: &mut Array3<bool>, chunk: Option<Chunk>) -> Option<usize> {
     let (n_pieces, rows, cols): (usize, usize, usize) = match state.shape() {
         [n, r, c] => (n-1, *r, *c),
         _ => panic!("Invalid dimensions"),
@@ -61,34 +69,22 @@ fn solve(place_order: &mut Vec<usize>, lines_cleared: &mut Vec<usize>, pieces: &
                 }
             }
         }
-        'row: for i in 0..rows {
-            let mut j = 0_usize;
-            while wstate[[i, j]] {
-                j += 1;
-                if j == cols {
-                    row_filled[i] = true;
-                    clear += 1;
-                    continue 'row;
-                }
+        for (i, row) in wstate.axis_iter(Axis(0)).enumerate() {
+            row_filled[i] = row.iter().all(|&x| x);
+            if row_filled[i] {
+                clear += 1;
             }
-            row_filled[i] = false;
         }
-        'col: for i in 0..cols {
-            let mut j = 0_usize;
-            while wstate[[j, i]] {
-                j += 1;
-                if j == rows {
-                    col_filled[i] = true;
-                    clear += 1;
-                    continue 'col;
-                }
+        for (i, col) in wstate.axis_iter(Axis(1)).enumerate() {
+            col_filled[i] = col.iter().all(|&x| x);
+            if col_filled[i] {
+                clear += 1;
             }
-            col_filled[i] = false;
         }
-        for i in 0..rows {
-            for j in 0..cols {
-                if row_filled[i] || col_filled[j] {
-                    wstate[[i, j]] = false;
+        if {
+            for mut chunk in wstate.exact_chunks_mut((3, 3)) {
+                if chunk.all(|&x| x) {
+                    chunk.fill(false);
                 }
             }
         }
@@ -157,6 +153,7 @@ fn solve(place_order: &mut Vec<usize>, lines_cleared: &mut Vec<usize>, pieces: &
     if solvable {Some(max_lines_cleared)} else {None}
 }
 fn main() {
+    let args = Args::parse();
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     tracing_subscriber::fmt()
         .with_env_filter(filter)
@@ -195,6 +192,40 @@ fn main() {
         }
     };
     debug!(?rows, ?cols, ?n_pieces);
+    let mut chunk = Chunk(0, 0);
+    if &args.wooden {
+        chunk = loop {
+            if term {
+                print!("Enter the chunk dimensions (rows by columns): ");
+            }
+            let result = try_readln! {
+                (let r: usize, let c: usize) => (r, c)
+            };
+            match result {
+                Ok((r, c)) => {
+                    let invalid = r == 0 || c == 0;
+                    if invalid || rows % r != 0 || cols % c != 0 {
+                        if invalid {
+                            error!(?r, ?c, "Invalid input");
+                        } else {
+                            error!(?rows, ?cols, ?r, ?c, "Chunks do not distribute over the grid evenly");
+                        }
+                        if !term {
+                            return;
+                        }
+                    } else {
+                        break Chunk(r, c);
+                    }
+                },
+                Err(e) => {
+                    error!(error = %e, "Invalid input");
+                    if !term {
+                        return;
+                    }
+                },
+            }
+        };
+    }
     let mut place_order: Vec<usize> = vec![0; 2*n_pieces];
     let mut lines_cleared: Vec<usize> = vec![0; n_pieces];
     let mut pieces: Vec<Array2<bool>> = Vec::with_capacity(n_pieces);
@@ -264,16 +295,20 @@ Row string input with insufficient length will leave the remaining cells empty."
     }
     let result = solve(&mut place_order, &mut lines_cleared, &pieces, &mut state);
     match result {
-        Some(lines_cleared) => info!(?lines_cleared, "Solution found"),
+        Some(lines_cleared) => info!(clears = ?lines_cleared, "Solution found"),
         None => warn!("Unsolvable!"),
     };
     print_grid(state.slice(s![0, .., ..]));
     if result.is_some() {
         let mut j = 0_usize;
-        for i in 1..=n_pieces {
+        for (i, grid) in state.axis_iter(Axis(0)).skip(1).enumerate() {
+            let clears = lines_cleared[i];
             let pos = place_order[j+1];
             println!("Piece {}: {} {}", place_order[j]+1, pos/cols, pos%cols);
-            print_grid(state.slice(s![i, .., ..]));
+            print_grid(grid);
+            if *clears != 0 {
+                println!("({} clears)", *clears);
+            }
             j += 2;
         }
     }
