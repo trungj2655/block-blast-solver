@@ -9,10 +9,11 @@ repository = "https://github.com/trungj2655/block-blast-solver"
 license = "MIT"
 
 [dependencies]
+clap = { version = "4.5.54", features = ["derive"] }
 mimalloc = { version = "0.1.48", features = ["v3"] }
 ndarray = "0.17.1"
 scan-rules = "0.2.0"
-tracing = "0.1.44"
+tracing = { version = "0.1.44", features = ["release_max_level_info"] }
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 
 [[bin]]
@@ -29,3 +30,34 @@ codegen-units = 1
 lto = "fat"
 panic = "abort"
 strip = "symbols"
+
+[features]
+quiet_release = ["tracing/release_max_level_off"]
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+restriction = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+blanket_clippy_restriction_lints = "allow"
+single_call_fn = "allow"
+separated_literal_suffix = "allow"
+needless_raw_strings = "allow"
+missing_docs_in_private_items = "allow"
+arbitrary_source_item_ordering = "allow"
+wildcard_imports = "allow"
+non_ascii_literal = "allow"
+min_ident_chars = "allow"
+indexing_slicing = "allow"
+arithmetic_side_effects = "allow"
+cognitive_complexity = "allow"
+too_many_lines = "allow"
+implicit_return = "allow"
+print_stdout = "allow"
+unwrap_used = "allow"
+too_many_arguments = "allow"
+integer_division = "allow"
+integer_division_remainder_used = "allow"
+tuple_array_conversions = "allow"
+significant_drop_tightening = "allow"
+shadow_unrelated = "allow"
