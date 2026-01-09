@@ -21,6 +21,10 @@ name = "hamiltonian_path"
 path = "src/hamiltonian_path.rs"
 
 [[bin]]
+name = "sudoku_solver"
+path = "src/sudoku_solver.rs"
+
+[[bin]]
 name = "block_blast_solver"
 path = "src/block_blast_solver.rs"
 
@@ -61,3 +65,5 @@ integer_division_remainder_used = "allow"
 tuple_array_conversions = "allow"
 significant_drop_tightening = "allow"
 shadow_unrelated = "allow"
+many_single_char_names = "allow"
+cast_possible_truncation = "allow"
