@@ -9,12 +9,12 @@ repository = "https://github.com/trungj2655/block-blast-solver"
 license = "MIT"
 
 [dependencies]
-clap = { version = "4.5.54", features = ["derive"] }
+clap = { version = "4.6.0", features = ["derive"] }
 mimalloc = { version = "0.1.48", features = ["v3"] }
-ndarray = "0.17.1"
+ndarray = "0.17.2"
 scan-rules = "0.2.0"
 tracing = { version = "0.1.44", features = ["release_max_level_info"] }
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 
 [[bin]]
 name = "hamiltonian_path"
@@ -67,3 +67,6 @@ significant_drop_tightening = "allow"
 shadow_unrelated = "allow"
 many_single_char_names = "allow"
 cast_possible_truncation = "allow"
+std_instead_of_alloc = "allow"
+doc-paragraphs-missing-punctuation = "allow"
+

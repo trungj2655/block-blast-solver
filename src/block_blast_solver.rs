@@ -26,7 +26,7 @@ impl Available {
 struct Args {
     #[arg(short, long, default_value_t = false, help = "Also clears subgrids/\"chunks\" with sizes specified in the program")]
     wooden: bool,
-    #[arg(short, long, default_value_t = false, help = "Use Steinhaus-Johnson-Trotter algorithm for permutations instead")]
+    #[arg(short, long, default_value_t = false, help = "Use Steinhaus-Johnson-Trotter algorithm for generating permutations instead")]
     sjt: bool,
 }
 #[derive(Debug)]
